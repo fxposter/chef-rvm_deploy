@@ -53,6 +53,12 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
         action :nothing
       end.run_action(:create)
 
+      rvm_shell "nop" do
+        ruby_string ruby_string
+        code "true"
+        action :nothing
+      end.run_action(:run)
+
       execute "chown gemset to #{user}" do
         command %(chown #{user} -R "#{node[:rvm][:root_path]}/gems/#{ruby_string}")
         action :nothing
