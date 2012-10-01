@@ -12,7 +12,7 @@ class RvmDeployResource < Chef::Resource::Deploy
     set_or_return(
       :ruby_string,
       arg,
-      :kind_of => [ String ]
+      :kind_of => [String]
     )
   end
 
@@ -20,7 +20,7 @@ class RvmDeployResource < Chef::Resource::Deploy
     set_or_return(
       :precompile_assets,
       arg,
-      :kind_of => [ TrueClass, FalseClass ]
+      :kind_of => [TrueClass, FalseClass]
     )
   end
 end

@@ -30,7 +30,8 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
       action :nothing
     end.run_action(:create)
 
-    new_resource.symlinks["config/setup_load_paths.rb"] = "config/setup_load_paths.rb"
+    new_resource.symlinks["config/setup_load_paths.rb"] =
+      "config/setup_load_paths.rb"
   end
 
   def create_rvmrc
@@ -59,8 +60,9 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
         action :nothing
       end.run_action(:run)
 
+      gemset_path = "#{node["rvm"][:root_path]}/gems/#{ruby_string}"
       execute "chown gemset to #{user}" do
-        command %(chown #{user} -R "#{node["rvm"]["root_path"]}/gems/#{ruby_string}")
+        command %(chown #{user} -R "#{gemset_path}")
         action :nothing
       end.run_action(:run)
     end
@@ -80,7 +82,9 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
   def paths_changed?(paths)
     changed = true
     if @previous_release_path
-      previous_commit_hash = Dir.chdir(@previous_release_path) { `git rev-parse HEAD` }.strip
+      previous_commit_hash =
+        Dir.chdir(@previous_release_path) { `git rev-parse HEAD` }.strip
+
       Dir.chdir(release_path) do
         if `git log #{previous_commit_hash}..HEAD #{paths.join(' ')}`.empty?
           changed = false
@@ -127,7 +131,13 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
       cwd release_path
       user new_resource.user
       environment new_resource.environment
-      code "bundle exec rake airbrake:deploy TO=#{new_resource.environment['RAILS_ENV']} REVISION='#{revision}' REPO='#{repository}' USER='#{user}'"
+      code <<-EOC
+        bundle exec rake airbrake:deploy \
+          TO=#{new_resource.environment['RAILS_ENV']} \
+          REVISION='#{revision}' \
+          REPO='#{repository}' \
+          USER='#{user}'
+      EOC
       ignore_failure true
       action :nothing
     end.run_action(:run)
