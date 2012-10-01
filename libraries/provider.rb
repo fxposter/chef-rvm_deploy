@@ -60,7 +60,7 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
       end.run_action(:run)
 
       execute "chown gemset to #{user}" do
-        command %(chown #{user} -R "#{node[:rvm][:root_path]}/gems/#{ruby_string}")
+        command %(chown #{user} -R "#{node["rvm"]["root_path"]}/gems/#{ruby_string}")
         action :nothing
       end.run_action(:run)
     end
@@ -91,16 +91,15 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
   end
 
   def precompile_assets
-    if @new_resource.precompile_assets # && paths_changed?(%w(app/assets lib/assets vendor/assets Gemfile.lock config/application.rb))
-      rvm_shell "precompile assets" do
-        ruby_string new_resource.ruby_string
-        cwd release_path
-        user new_resource.user
-        code "bundle exec rake assets:precompile"
-        environment new_resource.environment
-        action :nothing
-      end.run_action(:run)
-    end
+    rvm_shell "precompile assets" do
+      ruby_string new_resource.ruby_string
+      cwd release_path
+      user new_resource.user
+      code "bundle exec rake assets:precompile"
+      environment new_resource.environment
+      action :nothing
+      only_if { @new_resource.precompile_assets } # && paths_changed?(%w(app/assets lib/assets vendor/assets Gemfile.lock config/application.rb))
+    end.run_action(:run)
   end
 
   def migrate
