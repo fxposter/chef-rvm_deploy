@@ -102,7 +102,7 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
       code "bundle exec rake assets:precompile"
       environment new_resource.environment
       action :nothing
-      only_if { @new_resource.precompile_assets } # && paths_changed?(%w(app/assets lib/assets vendor/assets Gemfile.lock config/application.rb))
+      only_if { new_resource.precompile_assets } # && paths_changed?(%w(app/assets lib/assets vendor/assets Gemfile.lock config/application.rb))
     end.run_action(:run)
   end
 
