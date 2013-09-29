@@ -1,4 +1,25 @@
 class RvmDeployProvider < Chef::Provider::Deploy::Revision
+  def action_deploy
+    save_release_state
+
+    if deployed?(release_path)
+      if current_release?(release_path)
+        if same_ruby_version?
+          Chef::Log.debug("#{@new_resource} is the latest version")
+        else
+          action_force_deploy
+        end
+      else
+        rollback_to release_path
+      end
+    else
+      with_rollback_on_error do
+        deploy
+        @new_resource.updated_by_last_action(true)
+      end
+    end
+  end
+
   def deploy
     enforce_ownership
     verify_directories_exist
@@ -69,13 +90,23 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
   end
 
   def install_gems
-    rvm_shell "install gems" do
-      ruby_string new_resource.ruby_string
-      cwd release_path
-      user new_resource.user
-      code "bundle install"
-      action :nothing
-    end.run_action(:run)
+    if ::Dir.exists?(::File.join(release_path, 'vendor', 'cache'))
+      rvm_shell "install gems" do
+        ruby_string new_resource.ruby_string
+        cwd release_path
+        user new_resource.user
+        code "bundle install --without development test assets --local"
+        action :nothing
+      end.run_action(:run)
+    else
+      rvm_shell "install gems" do
+        ruby_string new_resource.ruby_string
+        cwd release_path
+        user new_resource.user
+        code "bundle install"
+        action :nothing
+      end.run_action(:run)
+    end
   end
 
   # @see http://jessewolgamott.com/blog/2012/09/03/the-one-where-you-take-your-deploy-to-11-asset-pipeline/
@@ -126,6 +157,7 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
   def notify_airbrake
     revision = ::File.basename(release_path)
     repository = new_resource.repo
+    airbrake_environment = (new_resource.environment && new_resource.environment['RAILS_ENV']) || 'production'
     rvm_shell "notify airbrake" do
       ruby_string new_resource.ruby_string
       cwd release_path
@@ -133,7 +165,7 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
       environment new_resource.environment
       code <<-EOC
         bundle exec rake airbrake:deploy \
-          TO=#{new_resource.environment['RAILS_ENV']} \
+          TO=#{airbrake_environment} \
           REVISION='#{revision}' \
           REPO='#{repository}' \
           USER='#{user}'
@@ -141,5 +173,10 @@ class RvmDeployProvider < Chef::Provider::Deploy::Revision
       ignore_failure true
       action :nothing
     end.run_action(:run)
+  end
+
+  private
+  def same_ruby_version?
+    ::File.read(::File.join(release_path, '.rvmrc')).match(/^rvm use ([^@]+)/)[1] == @new_resource.ruby_string.match(/^([^@]+)/)[1]
   end
 end
